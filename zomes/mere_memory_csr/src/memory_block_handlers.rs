@@ -10,9 +10,17 @@ use hdk::prelude::*;
 pub fn create_memory_block_entry(block: MemoryBlockEntry) -> ExternResult<EntryHash> {
     debug!("Creating 'MemoryBlockEntry' ({}/{}): {}", block.sequence.position, block.sequence.length, block.bytes.len() );
 
-    create_entry( block.to_input() )?;
-
-    Ok( hash_entry( &block )? )
+    let action_hash = create_entry( block.to_input() )?;
+    let details = get_details(action_hash, GetOptions::default())?.ok_or(
+        wasm_error!(WasmErrorInner::Guest("Could not get action details".into()))
+    )?;
+    
+    match details {
+        Details::Record(record_details) => Ok(record_details.record.action().entry_hash().ok_or(
+            wasm_error!(WasmErrorInner::Guest("Expected entry hash".into()))
+        )?.clone()),
+        _ => Err(wasm_error!(WasmErrorInner::Guest("Expected record".into())))
+    }
 }
 
 
